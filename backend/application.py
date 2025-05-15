@@ -7,10 +7,12 @@ from flask_cors import CORS
 import librosa
 import numpy as np
 
-app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
+application = Flask(__name__)
+application.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
-@app.route('/api/compare', methods=['POST'])
+CORS(application, resources={r"/api/*": {"origins": "https://audio-comparison-app.netlify.app/"}})
+
+@application.route('/api/compare', methods=['POST'])
 def compare_audio():
     print("Received request to /api/compare")
     if 'audio1' not in request.files or 'audio2' not in request.files:
@@ -31,60 +33,43 @@ def compare_audio():
         print("Audio loaded successfully.")
 
         def extract_features(y, sr):
+            # Compute STFT magnitude for spectral flux
             S = np.abs(librosa.stft(y))
-            onset_env = librosa.onset.onset_strength(y=y, sr=sr)
-            onsets_frames = librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr)
-            onsets_times = librosa.frames_to_time(onsets_frames, sr=sr)
 
-            y_harmonic = librosa.effects.harmonic(y)
-            y_percussive = librosa.effects.percussive(y)
-
-            mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-            chroma = librosa.feature.chroma_stft(y=y, sr=sr)
+            # Spectral features
             centroid = librosa.feature.spectral_centroid(y=y, sr=sr)
             bandwidth = librosa.feature.spectral_bandwidth(y=y, sr=sr)
             rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr)
-            contrast = librosa.feature.spectral_contrast(y=y, sr=sr)
-            melspec = librosa.feature.melspectrogram(y=y, sr=sr)
-            tonnetz = librosa.feature.tonnetz(y=y_harmonic, sr=sr)
 
-            rms = librosa.feature.rms(y=y)
+            # Zero-crossing rate
             zcr = librosa.feature.zero_crossing_rate(y=y)
-            spectral_flux = np.sqrt(np.sum(np.diff(S, axis=1)**2, axis=0))
 
-            rms_harm = librosa.feature.rms(y=y_harmonic)
-            rms_perc = librosa.feature.rms(y=y_percussive)
-            harmony_energy = float(np.mean(rms_harm))
-            percussive_energy = float(np.mean(rms_perc))
+            # RMS energy
+            rms = librosa.feature.rms(y=y)
+            rms_harm = librosa.feature.rms(y=librosa.effects.harmonic(y))
+            rms_perc = librosa.feature.rms(y=librosa.effects.percussive(y))
+
+            # Tempo and beat count
+            tempo = float(librosa.beat.tempo(y=y, sr=sr)[0])
+            _, beats = librosa.beat.beat_track(y=y, sr=sr)
+            beat_count = len(librosa.frames_to_time(beats, sr=sr))
+
+            # Mean spectral flux
+            spectral_flux = np.sqrt(np.sum(np.diff(S, axis=1)**2, axis=0))
 
             return {
                 "sampling_rate_hz": sr,
                 "duration_s": round(librosa.get_duration(y=y, sr=sr), 2),
-                "estimated_tempo_bpm": round(float(librosa.beat.tempo(y=y, sr=sr)[0]), 2),
-                "beat_count": int(len(librosa.frames_to_time(librosa.beat.beat_track(y=y, sr=sr)[1], sr=sr))),
-                "first_5_beat_times_s": [round(t, 2) for t in librosa.frames_to_time(librosa.beat.beat_track(y=y, sr=sr)[1], sr=sr)[:5]],
-                "onsets_s": onsets_times.tolist(),
-                "mfcc": mfcc.tolist(),
-                "chroma": chroma.tolist(),
-                "spectral_centroid": centroid[0].tolist(),
-                "spectral_centroid_mean": float(np.mean(centroid)),
-                "spectral_bandwidth": bandwidth[0].tolist(),
-                "spectral_bandwidth_mean": float(np.mean(bandwidth)),
-                "spectral_rolloff": rolloff[0].tolist(),
-                "spectral_rolloff_mean": float(np.mean(rolloff)),
-                "spectral_contrast": contrast.tolist(),
-                "mel_spectrogram": melspec.tolist(),
-                "tonnetz": tonnetz.tolist(),
-                "rms": rms[0].tolist(),
+                "estimated_tempo_bpm": round(tempo, 2),
+                "beat_count": int(beat_count),
                 "loudness_rms_mean": round(float(np.mean(rms)), 6),
-                "zero_crossing_rate": zcr[0].tolist(),
+                "harmonic_energy": float(np.mean(rms_harm)),
+                "percussive_energy": float(np.mean(rms_perc)),
+                "spectral_centroid_mean": float(np.mean(centroid)),
+                "spectral_bandwidth_mean": float(np.mean(bandwidth)),
+                "spectral_rolloff_mean": float(np.mean(rolloff)),
                 "zero_crossing_rate_mean": float(np.mean(zcr)),
-                "onset_strength": onset_env.tolist(),
-                "onset_strength_mean": float(np.mean(onset_env)),
-                "spectral_flux": spectral_flux.tolist(),
                 "spectral_flux_mean": float(np.mean(spectral_flux)),
-                "harmonic_energy": harmony_energy,
-                "percussive_energy": percussive_energy
             }
 
         print("Extracting features for file1...")
@@ -114,6 +99,5 @@ def compare_audio():
         print(traceback.format_exc())
         return jsonify({"error": f"An error occurred during analysis: {str(e)}"}), 500
 
-
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    application.run(debug=True, port=5000)

@@ -4,6 +4,7 @@ import * as d3 from "d3";
 interface AudioFeatureData {
   file1Name: string;
   file2Name: string;
+  // now strictly numeric entries
   features1: Record<string, number>;
   features2: Record<string, number>;
 }
@@ -14,7 +15,11 @@ interface Props {
 
 const ResultsVisualization: React.FC<Props> = ({ data }) => {
   useEffect(() => {
+    // Expanded to include the remaining scalar features
     const featureKeys = [
+      "sampling_rate_hz",
+      "duration_s",
+      "beat_count",
       "estimated_tempo_bpm",
       "loudness_rms_mean",
       "harmonic_energy",
@@ -24,9 +29,9 @@ const ResultsVisualization: React.FC<Props> = ({ data }) => {
       "spectral_rolloff_mean",
       "zero_crossing_rate_mean",
       "spectral_flux_mean",
-      "onset_strength_mean",
     ];
 
+    // clear existing svgs
     d3.selectAll(".feature-chart svg").remove();
 
     featureKeys.forEach((key) => {
@@ -103,6 +108,9 @@ const ResultsVisualization: React.FC<Props> = ({ data }) => {
       <h3>Audio Feature Comparison</h3>
       <div className="feature-grid">
         {[
+          "sampling_rate_hz",
+          "duration_s",
+          "beat_count",
           "estimated_tempo_bpm",
           "loudness_rms_mean",
           "harmonic_energy",
@@ -112,7 +120,6 @@ const ResultsVisualization: React.FC<Props> = ({ data }) => {
           "spectral_rolloff_mean",
           "zero_crossing_rate_mean",
           "spectral_flux_mean",
-          "onset_strength_mean",
         ].map((featureKey) => (
           <div key={featureKey} id={featureKey} className="feature-chart">
             <h4 style={{ textTransform: "capitalize" }}>

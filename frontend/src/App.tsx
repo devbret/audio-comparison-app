@@ -51,13 +51,15 @@ function App() {
     setError(null);
     setAnalysisResult(null);
 
+    const apiUrl = import.meta.env.VITE_API_URL;
+
     const formData = new FormData();
     formData.append("audio1", file1);
     formData.append("audio2", file2);
 
     try {
       const response = await axios.post<AnalysisResult>(
-        "/api/compare",
+        `${apiUrl}/api/compare`,
         formData
       );
 
@@ -93,7 +95,7 @@ function App() {
   return (
     <>
       {/* Header Section */}
-      <h1>Audio Comparison Tool</h1>
+      <h1>Audio Comparison App</h1>
       <p>Upload two audio files to compare them using Librosa.</p>
       {/* File Upload Form */}
       <form onSubmit={handleSubmit} className="upload-form">
