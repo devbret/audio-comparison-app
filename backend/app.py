@@ -10,7 +10,10 @@ import numpy as np
 application = Flask(__name__)
 application.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
-CORS(application, resources={r"/api/*": {"origins": "https://audio-comparison-app.netlify.app/"}})
+CORS(application, resources={r"/api/*": {"origins": [
+    "http://localhost:5173", 
+    "http://127.0.0.1:5173"
+]}}, supports_credentials=True)
 
 @application.route('/api/compare', methods=['POST'])
 def compare_audio():

@@ -51,15 +51,13 @@ function App() {
     setError(null);
     setAnalysisResult(null);
 
-    const apiUrl = import.meta.env.VITE_API_URL;
-
     const formData = new FormData();
     formData.append("audio1", file1);
     formData.append("audio2", file2);
 
     try {
       const response = await axios.post<AnalysisResult>(
-        `${apiUrl}/api/compare`,
+        `/api/compare`,
         formData
       );
 
